@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="cs"><head><meta charset="utf-8"><title>Obyvatelé ČR v datech</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Obyvatelé a cizinci ve všech obcích ČR: mapy, profil každé obce, otevřená data a metodika.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="spolecne/styl.css">
+<style>
+.hero{padding:42px 0 30px;display:grid;gap:28px;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);align-items:center}
+@media (max-width:860px){.hero{grid-template-columns:1fr;padding-top:26px}}
+.hero h1{font-size:clamp(34px,6.4vw,64px)}
+.hero p.lead{font-size:clamp(17px,2.2vw,20px);color:var(--mut);margin:14px 0 22px;max-width:620px}
+.hero .rychle{margin-top:12px;font-size:14px;color:var(--mut)}.hero .rychle a{margin-right:10px}
+.velke{border-radius:10px;padding:22px 22px 14px;background:var(--soft)}
+.velke .h{font-size:clamp(40px,6vw,58px);font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.velke .p{color:var(--mut);margin:6px 0 10px}
+.velke svg{height:90px}
+.velke .r{position:relative;height:16px;font-size:12px;color:var(--mut)}
+.velke .r span{position:absolute;top:0;transform:translateX(-50%)}.velke .r span:first-child{transform:none}.velke .r span:last-child{transform:translateX(-100%)}
+.ostatni .modul{box-shadow:none}
+</style></head><body>
+<main class="obal">
+  <section class="hero">
+    <div>
+      <div class="stitek">Otevřená data o obyvatelích všech obcí ČR</div>
+      <h1>Obyvatelé ČR v datech</h1>
+      <p class="lead">Kolik lidí žije ve vaší obci, kolik jich přibylo nebo ubylo, kolik je mezi nimi cizinců
+        a jak se to liší od oficiálního počtu ČSÚ. Pro obce, novináře, výzkumníky i hackathony.</p>
+      <div id="hledej"></div>
+      <p class="rychle">Například <a href="obec/?kod=582786">Brno</a><a href="obec/?kod=554782">Praha</a><a href="obec/?kod=554821">Ostrava</a><a href="obec/?kod=582824">Bílovice nad Svitavou</a></p>
+    </div>
+    <div class="velke" id="velke" aria-live="polite"><div class="h">&nbsp;</div><div class="p">&nbsp;</div></div>
+  </section>
+
+  <h2>Témata</h2>
+  <p class="uvod">Každé téma má vlastní mapy a grafy nad jednou otevřenou datovou sadou. Další témata přibudou.</p>
+  <div class="mrizka" id="moduly"></div>
+
+  <h2>Klíčová čísla za ČR</h2>
+  <p class="uvod" id="klic-uvod">&nbsp;</p>
+  <div class="dlazdice" id="klic"></div>
+
+  <h2>Dál</h2>
+  <div class="mrizka ostatni">
+    <a class="modul" href="obec/" style="--barva:var(--fg)"><h3>Profil obce</h3><p>Vývoj obyvatel, cizinci, srovnání s okresem, krajem a podobnými obcemi, pořadí. Ke sdílení i k tisku.</p><span class="dal">Vybrat obec →</span></a>
+    <a class="modul" href="metodika/" style="--barva:var(--csu)"><h3>Data a metodika</h3><p>Datové sady ke stažení, význam sloupců, které číslo kdy použít a na jaké zlomy v datech si dát pozor.</p><span class="dal">Číst metodiku →</span></a>
+    <a class="modul" href="metodika/#vyvojari" style="--barva:var(--acc)"><h3>Pro vývojáře a hackathony</h3><p>Stabilní adresy CSV a JSON, data každé obce jako statické API, příklady v Pythonu a R.</p><span class="dal">Začít s daty →</span></a>
+    <a class="modul" href="vlozit/" style="--barva:var(--ciz)"><h3>Grafy k vložení</h3><p>Mapy a grafy, které si obec nebo redakce vloží na svůj web jako iframe. Stačí zkopírovat kód.</p><span class="dal">Vybrat graf →</span></a>
+  </div>
+</main>
+<script src="spolecne/moduly.js"></script>
+<script src="spolecne/zaklad.js"></script>
+<script>
+Z.hlavicka('');
+Z.hledani(document.getElementById('hledej'), { placeholder: 'Napište název obce…' });
+
+Z.nacti('data/souhrn.json').then(S => {
+  const O = S.obyvatele, n = O.roky.length - 1, a = Math.max(0, O.roky.indexOf(Z.OD));
+  // roky na ose malého grafu: první, poslední a každý pátý mezi nimi
+  const rr = O.roky.slice(a), znacky = rr.map((r, j) => r % 5 === 0 && j > 1 && j < rr.length - 2 ? j : -1).filter(j => j >= 0);
+  const osa = [0, ...znacky, rr.length - 1].map(j => `<span style="left:${j / (rr.length - 1) * 100}%">${rr[j]}</span>`).join('');
+  // velké číslo v úvodu
+  const v = document.getElementById('velke');
+  v.innerHTML = `<div class="stitek">Obyvatelé podle MV k 1. 1. ${O.roky[n]}</div><div class="h" id="vh">0</div>
+    <div class="p">${Z.rozdil(O.obyvatele[n] - O.obyvatele[a])} od roku ${O.roky[a]} (${Z.pct(O.obyvatele[n] / O.obyvatele[a] - 1)}) ·
+    z toho ${Z.cis(O.cizinci[n])} cizinců</div>${Z.spark(O.obyvatele.slice(a), 'var(--obc)', { vyska: 90, znacky })}
+    <div class="r">${osa}</div>`;
+  Z.nabeh(document.getElementById('vh'), O.obyvatele[n]);
+
+  // karty témat z MODULY
+  document.getElementById('moduly').innerHTML = MODULY.filter(m => zapnuto(m.id)).map(m => {
+    if (m.stav !== 'hotovo') return `<div class="modul pripravujeme" style="--barva:${m.barva}"><span class="stitek">Připravujeme</span><h3>${Z.esc(m.nazev)}</h3><p>${Z.esc(m.popis)}</p></div>`;
+    let s = null; try { s = m.souhrn && m.souhrn(S) } catch (e) { console.warn(m.id, e) }
+    return `<a class="modul" href="${m.adresa}" style="--barva:${m.barva}"><h3>${Z.esc(m.nazev)}</h3>
+      ${s ? `<div class="cislo">${Z.cis(s.cislo)}<small>${Z.esc(s.popisek)}</small></div>${Z.spark(s.rada, m.barva)}` : ''}
+      <p>${Z.esc(m.popis)}</p><span class="dal">Otevřít →</span></a>`;
+  }).join('');
+
+  // klíčová čísla
+  const csu = O.odhad_csu[n], podil = O.cizinci[n] / O.obyvatele[n];
+  document.getElementById('klic-uvod').textContent = `Stav k 1. 1. ${O.roky[n]} podle informativních počtů MV, cizinci s povoleným pobytem k poslednímu měsíci.`;
+  const dl = (h, p, z) => `<div class="dl"><div class="h">${h}</div><div class="p">${p}</div>${z ? `<div class="z">${z}</div>` : ''}</div>`;
+  const mezi = O.obyvatele[n] - O.obyvatele[n - 1];
+  document.getElementById('klic').innerHTML = [
+    dl(Z.kratce(O.obyvatele[n]), 'obyvatel podle MV (občané + cizinci)', `<span class="${Z.znamenko(mezi)}">${Z.rozdil(mezi)}</span> za rok`),
+    dl(Z.kratce(O.obcane[n]), 'občanů ČR s trvalým pobytem', `<span class="${Z.znamenko(O.obcane[n] - O.obcane[a])}">${Z.pct(O.obcane[n] / O.obcane[a] - 1)}</span> od ${O.roky[a]}`),
+    dl(Z.pct(podil, false), 'podíl cizinců na obyvatelích', `${Z.kratce(O.docasna_ochrana[n])} z nich s dočasnou ochranou`),
+    dl(csu ? Z.kratce(csu) : '–', 'oficiální počet ČSÚ, nebo jeho odhad', `MV je o ${Z.pct(O.obyvatele[n] / csu - 1, false)} výš`),
+    dl(Z.cis(O.obci), 'obcí, každá má svůj profil', '<a href="obec/">vybrat obec →</a>'),
+  ].join('');
+}).catch(e => { document.getElementById('velke').innerHTML = '<p class="mut">Data se nepodařilo načíst. Stránka musí běžet přes web server.</p>'; console.error(e) });
+</script>
+</body></html>

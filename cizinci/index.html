@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="cs"><head><meta charset="utf-8"><title>Cizinci · Obyvatelé ČR v datech</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Cizinci s povoleným pobytem v ČR: měsíční vývoj od roku 2007, okresy, státní příslušnost.">
+<script>if (new URLSearchParams(location.search).has('graf')) location.replace('graf.html' + location.search)</script>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../spolecne/styl.css">
+<style>
+.zahl{padding:30px 0 4px}
+.radek{display:grid;grid-template-columns:minmax(7em,12em) 1fr 5.5em 4em;gap:8px;align-items:center;font-size:15px;margin:4px 0}
+.radek span.b{height:14px;border-radius:2px;background:var(--ciz)}
+.radek .c{text-align:right;font-variant-numeric:tabular-nums}
+.zeb td.sp{width:120px}.zeb td.sp svg{height:26px}
+</style></head><body>
+<main class="obal">
+  <section class="zahl"><div class="stitek" style="color:var(--ciz)">Téma</div><h1>Cizinci</h1>
+    <p class="uvod">Cizinci s povoleným pobytem (trvalým nebo přechodným nad 90 dní, od roku 2022 i s dočasnou ochranou)
+      podle měsíčních přehledů Ministerstva vnitra. Celá ČR po měsících od roku 2007, okresy a státní příslušnost od roku 2012.</p></section>
+  <div class="dlazdice" id="klic" style="margin-top:22px"></div>
+
+  <h2>Vývoj po měsících</h2>
+  <p class="uvod">Celkem podle druhu pobytu, nebo podle států. Očíslované značky vysvětlují zlomy v řadě.</p>
+  <div class="rama"><iframe src="graf.html?graf=vyvoj&nadpis=0" height="740" title="Cizinci po měsících" loading="lazy"></iframe></div>
+
+  <h2>Odkud cizinci jsou</h2>
+  <p class="uvod" id="staty-uvod"></p>
+  <div class="dve"><div class="blok" id="staty"></div><div class="blok" id="zmeny"></div></div>
+
+  <h2>Okresy</h2>
+  <p class="uvod">Podíl cizinců na obyvatelích okresu, posuvníkem projdete roky. Kliknutím na okres zobrazíte státy, odkud jeho cizinci jsou.</p>
+  <div class="rama"><iframe src="graf.html?graf=mapa&nadpis=0" height="680" title="Cizinci v okresech" loading="lazy"></iframe></div>
+  <h3 style="margin:22px 0 6px;text-transform:uppercase;font-size:17px">Okresy s nejvyšším podílem cizinců</h3>
+  <div class="posuv"><table class="tab zeb" id="okresy"></table></div>
+
+  <h2>Na co si dát pozor</h2>
+  <div class="dve">
+    <div class="blok"><h3>Dva různé zdroje</h3><p>Tato sada (cizinci s povoleným pobytem k 31. 12.) a cizinci v sadě obyvatel (k 1. 1.) pocházejí z různých přehledů MV a drobně se liší. Státní příslušnost je jen v této sadě a jen po okresech, za obce ji MV nezveřejňuje.</p></div>
+    <div class="blok"><h3>Zlomy v řadě</h3><p>Hospodářská krize po roce 2008, pravděpodobná změna evidence v prosinci 2011, brexit (2021), dočasná ochrana od března 2022 a konec neprodloužených ochran v březnu 2023. Graf vývoje je označuje čísly.</p><p><a href="../metodika/#zlomy">Zlomy v datech →</a></p></div>
+  </div>
+
+  <h2>Data</h2>
+  <div class="blok"><p><a href="../metodika/#sady">Datová sada ke stažení (CSV a Excel)</a> · <a href="../metodika/">metodika</a></p></div>
+</main>
+<script src="../spolecne/moduly.js"></script>
+<script src="../spolecne/zaklad.js"></script>
+<script>
+Z.hlavicka('cizinci');
+const $ = id => document.getElementById(id), { cis, pct, rozdil, esc, kratce, znamenko } = Z;
+Promise.all([Z.nacti('cizinci/vyvoj.json'), Z.nacti('cizinci/mapa.json')]).then(([Vy, M]) => {
+  const n = Vy.mesice.length - 1, posl = Vy.mesice[n], pred = n - 12;
+  const datum = m => { const [r, mm] = m.split('-'); return new Date(+r, +mm, 0).toLocaleDateString('cs-CZ') };
+  const c = Vy.celkem[n], cR = Vy.celkem[pred];
+  const j = M.roky.length - 1, podil = M.cr.c[j] / M.cr.o[j];
+  const okr = Object.entries(M.okresy).map(([k, o]) => [k, o, o.c[j] / o.o[j]]).sort((a, b) => b[2] - a[2]);
+  const dl = (h, p, z) => `<div class="dl"><div class="h">${h}</div><div class="p">${p}</div>${z ? `<div class="z">${z}</div>` : ''}</div>`;
+  $('klic').innerHTML = [
+    dl(cis(c), `cizinců k ${datum(posl)}`, `<span class="${znamenko(c - cR)}">${rozdil(c - cR)}</span> za rok`),
+    dl(pct(Vy.trvaly[n] / c, false), 'má trvalý pobyt', `${pct(Vy.trvaly[pred] / cR, false)} před rokem`),
+    dl(Vy.docasna[n] != null ? kratce(Vy.docasna[n]) : '–', 'lidí s dočasnou ochranou', ''),
+    dl(pct(podil, false), `podíl na obyvatelích k 31. 12. ${M.roky[j]}`, `${M.roky[0]}: ${pct(M.cr.c[0] / M.cr.o[0], false)}`),
+    dl(esc(okr[0][1].n), 'okres s nejvyšším podílem', pct(okr[0][2], false)),
+  ].join('');
+
+  // státy: poslední měsíc a změna za rok
+  const st = Vy.staty.filter(s => s.v[n] != null).map(s => ({ ...s, p: s.v[n], z: s.v[n] - (s.v[pred] || 0) }));
+  const top = [...st].sort((a, b) => b.p - a.p).slice(0, 12), mx = top[0].p;
+  $('staty-uvod').textContent = `Nejčastější státní příslušnosti k ${datum(posl)} a největší změny za posledních 12 měsíců.`;
+  $('staty').innerHTML = `<h3>Nejčastější státy</h3>` + top.map(s => `<div class="radek"><span>${esc(s.n)}</span><span class="b" style="width:${s.p / mx * 100}%"></span><span class="c">${cis(s.p)}</span><span class="c mut">${pct(s.p / c, false, 1)}</span></div>`).join('');
+  const zm = [...st].sort((a, b) => Math.abs(b.z) - Math.abs(a.z)).slice(0, 10), mz = Math.abs(zm[0].z) || 1;
+  $('zmeny').innerHTML = `<h3>Největší změny za rok</h3>` + zm.map(s => `<div class="radek"><span>${esc(s.n)}</span><span class="b" style="width:${Math.abs(s.z) / mz * 100}%;background:${s.z >= 0 ? 'var(--plus)' : 'var(--minus)'}"></span><span class="c ${znamenko(s.z)}">${rozdil(s.z)}</span><span class="c mut">${pct(s.z / (s.p - s.z || 1), true, 0)}</span></div>`).join('');
+
+  $('okresy').innerHTML = `<thead><tr><th>#</th><th>Okres</th><th>Kraj</th><th class="c">Cizinci</th><th class="c">Podíl ${M.roky[j]}</th><th class="c">Podíl ${M.roky[0]}</th><th>Hlavní stát</th><th class="sp">Vývoj podílu</th></tr></thead><tbody>` +
+    okr.slice(0, 15).map(([k, o, p], i) => `<tr><td class="mut">${i + 1}.</td><td><a href="graf.html?graf=mapa&okres=${k}">${esc(o.n)}</a></td><td class="mut">${esc(o.kraj)}</td><td class="c">${cis(o.c[j])}</td><td class="c"><b>${pct(p, false)}</b></td>
+      <td class="c">${pct(o.c[0] / o.o[0], false)}</td><td>${esc(M.staty[o.top[j][0]?.[0]] || '')}</td><td class="sp">${Z.spark(o.c.map((v, i) => v / o.o[i]), 'var(--ciz)', { vyska: 26, sirka: 120 })}</td></tr>`).join('') + '</tbody>';
+});
+</script>
+</body></html>

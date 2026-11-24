@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="cs"><head><meta charset="utf-8"><title>Obyvatelé · Obyvatelé ČR v datech</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Obyvatelé všech obcí a městských částí ČR od roku 2004: mapa změn, žebříčky obcí, občané a cizinci.">
+<script>if (new URLSearchParams(location.search).has('graf')) location.replace('graf.html' + location.search)</script>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../spolecne/styl.css">
+<style>
+.zahl{padding:30px 0 4px}
+.zeb td.sp{width:120px}.zeb td.sp svg{height:26px}
+.zeb tr{cursor:pointer}.zeb tbody tr:hover td{background:var(--soft)}
+.zeb .por{color:var(--mut);width:2.5em}
+</style></head><body>
+<main class="obal">
+  <section class="zahl"><div class="stitek" style="color:var(--obc)">Téma</div><h1>Obyvatelé</h1>
+    <p class="uvod">Informativní počty obyvatel Ministerstva vnitra ve všech obcích a městských částech od roku 2004,
+      stav vždy k 1. 1. Občané ČR s trvalým pobytem a cizinci s trvalým nebo přechodným pobytem, k tomu oficiální počet ČSÚ.</p>
+    <div id="hl" class="male" style="max-width:420px"></div></section>
+  <div class="dlazdice" id="klic" style="margin-top:22px"></div>
+
+  <h2>Mapa obcí</h2>
+  <p class="uvod">Kde obyvatel přibylo a kde ubylo. Přepněte na změnu počtu občanů ČR (bez vlivu cizinců a dočasné ochrany) nebo na podíl cizinců, kliknutím na obec zobrazíte její vývoj.</p>
+  <div class="rama"><iframe src="graf.html?graf=mapa&nadpis=0" height="780" title="Mapa obcí" loading="lazy"></iframe></div>
+
+  <h2>Žebříčky obcí</h2>
+  <p class="uvod">Vyberte kraj, velikost obce a ukazatel. Kliknutím na řádek otevřete profil obce.</p>
+  <div class="ovl">
+    <select id="z-uk" aria-label="Ukazatel"><option value="rust">nejrychleji rostoucí</option><option value="ubytek">nejrychleji ubývající</option>
+      <option value="pribylo">nejvíc obyvatel přibylo</option><option value="ubylo">nejvíc obyvatel ubylo</option><option value="ciz">nejvyšší podíl cizinců</option><option value="velke">největší</option></select>
+    <select id="z-kraj" aria-label="Kraj"><option value="">celá ČR</option></select>
+    <select id="z-vel" aria-label="Velikost obce"><option value="0">všechny velikosti</option><option value="500" selected>nad 500 obyvatel</option><option value="2000">nad 2 000 obyvatel</option><option value="10000">nad 10 000 obyvatel</option></select>
+    <label class="mut">od <select id="z-od"></select></label><label class="mut">do <select id="z-do"></select></label>
+  </div>
+  <div class="posuv"><table class="tab zeb" id="zeb"></table></div>
+  <p class="pozn">Od roku 2023 jsou v počtech i lidé s dočasnou ochranou, u obcí s ubytovnami to může změnu výrazně zvýšit. Pro čistší srovnání vyberte roky do 2022, nebo se podívejte na změnu občanů na mapě.</p>
+
+  <h2>Městské části</h2>
+  <p class="uvod">Osm statutárních měst je členěno na městské části nebo obvody. Mapa ukazuje změnu počtu obyvatel v každé z nich.</p>
+  <div class="rama"><iframe src="graf.html?graf=mesto&mesto=582786&nadpis=0" height="900" title="Městské části" loading="lazy"></iframe></div>
+
+  <h2>Na co si dát pozor</h2>
+  <div class="dve">
+    <div class="blok"><h3>MV není oficiální počet obyvatel</h3><p>Registr MV obsahuje i lidi, kteří v obci nežijí. Celostátně je o 3,4 % vyšší než oficiální počet ČSÚ, ve velkých městech o víc. Datová sada proto obsahuje i počet ČSÚ a jeho odhad pro rok, který ČSÚ ještě nezveřejnil.</p><p><a href="../metodika/#ktere-cislo">Které číslo kdy použít →</a></p></div>
+    <div class="blok"><h3>Zlom v roce 2023</h3><p>MV od roku 2023 počítá do cizinců i lidi s dočasnou ochranou (válka na Ukrajině). Počet obyvatel ČR tím skočil o ~450 tis. Pro srovnání v čase sledujte občany ČR, nebo dočasnou ochranu odečtěte.</p><p><a href="../metodika/#zlomy">Zlomy v datech →</a></p></div>
+  </div>
+
+  <h2>Data</h2>
+  <div class="blok"><p><a href="../metodika/#sady">Datová sada ke stažení (CSV a Excel)</a> ·
+    data každé obce jako JSON: <code>data/obce/{kód obce}.json</code> · <a href="../metodika/">metodika</a></p></div>
+</main>
+<script src="../spolecne/moduly.js"></script>
+<script src="../spolecne/zaklad.js"></script>
+<script>
+Z.hlavicka('obyvatele');
+Z.hledani(document.getElementById('hl'), { placeholder: 'Profil obce…' });
+const $ = id => document.getElementById(id), { cis, pct, rozdil, esc, kratce, znamenko } = Z;
+
+Z.nacti('data/souhrn.json').then(S => {
+  const O = S.obyvatele, n = O.roky.length - 1, a = Math.max(0, O.roky.indexOf(Z.OD));
+  const dl = (h, p, z) => `<div class="dl"><div class="h">${h}</div><div class="p">${p}</div>${z ? `<div class="z">${z}</div>` : ''}</div>`;
+  $('klic').innerHTML = [
+    dl(kratce(O.obyvatele[n]), `obyvatel k 1. 1. ${O.roky[n]} (MV)`, `<span class="${znamenko(O.obyvatele[n] - O.obyvatele[a])}">${pct(O.obyvatele[n] / O.obyvatele[a] - 1)}</span> od ${O.roky[a]}`),
+    dl(kratce(O.obcane[n]), 'občanů ČR', `<span class="${znamenko(O.obcane[n] - O.obcane[a])}">${pct(O.obcane[n] / O.obcane[a] - 1)}</span> od ${O.roky[a]}`),
+    dl(kratce(O.cizinci[n]), 'cizinců s pobytem', `${kratce(O.docasna_ochrana[n])} s dočasnou ochranou`),
+    dl(O.odhad_csu[n] ? kratce(O.odhad_csu[n]) : '–', 'oficiální počet ČSÚ / odhad', ''),
+    dl(cis(O.obci), 'obcí', '<a href="../obec/">profily obcí →</a>'),
+  ].join('');
+});
+
+Z.nacti('obyvatele/obce.json').then(V => {
+  const R = V.roky;
+  for (const [k, v] of Object.entries(V.kraje)) $('z-kraj').add(new Option(v, k));
+  R.forEach(r => { $('z-od').add(new Option(r, r)); $('z-do').add(new Option(r, r)) });
+  $('z-od').value = R.includes(Z.OD) ? Z.OD : R[0]; $('z-do').value = R.at(-1);
+  const kresli = () => {
+    const uk = $('z-uk').value, kr = $('z-kraj').value, vel = +$('z-vel').value, a = R.indexOf(+$('z-od').value), b = R.indexOf(+$('z-do').value);
+    if (a >= b) { $('zeb').innerHTML = '<tr><td class="mut">Zvolte rok „od“ menší než „do“.</td></tr>'; return }
+    const f = { rust: r => r[2][b] / r[2][a] - 1, ubytek: r => -(r[2][b] / r[2][a] - 1), pribylo: r => r[2][b] - r[2][a], ubylo: r => r[2][a] - r[2][b], ciz: r => r[3][b] / r[2][b], velke: r => r[2][b] }[uk];
+    const sez = Object.entries(V.obce).filter(([, r]) => r[2][a] && r[2][b] && r[2][b] >= vel && (!kr || r[1].slice(0, 5) === kr))
+      .map(([k, r]) => [k, r, f(r)]).filter(x => isFinite(x[2])).sort((x, y) => y[2] - x[2]).slice(0, 20);
+    $('zeb').innerHTML = `<thead><tr><th class="por">#</th><th>Obec</th><th>Okres</th><th class="c">${R[a]}</th><th class="c">${R[b]}</th><th class="c">Změna</th><th class="c">Cizinci ${R[b]}</th><th class="sp">Vývoj</th></tr></thead><tbody>` +
+      sez.map(([k, r], i) => { const z = r[2][b] / r[2][a] - 1;
+        return `<tr data-k="${k}"><td class="por">${i + 1}.</td><td><a href="${Z.odkazObce(k)}">${esc(r[0])}</a></td><td class="mut">${esc(V.okresy[r[1]] || '')}</td>
+        <td class="c">${cis(r[2][a])}</td><td class="c">${cis(r[2][b])}</td><td class="c ${znamenko(z)}">${pct(z)}<br><small class="mut">${rozdil(r[2][b] - r[2][a])}</small></td>
+        <td class="c">${pct(r[3][b] / r[2][b], false)}</td><td class="sp">${Z.spark(r[2].slice(a, b + 1), z >= 0 ? 'var(--plus)' : 'var(--minus)', { vyska: 26, sirka: 120 })}</td></tr>` }).join('') + '</tbody>';
+  };
+  ['z-uk', 'z-kraj', 'z-vel', 'z-od', 'z-do'].forEach(id => $(id).onchange = kresli);
+  $('zeb').onclick = e => { const tr = e.target.closest('tr[data-k]'); if (tr && !e.target.closest('a')) location.href = Z.odkazObce(tr.dataset.k) };
+  kresli();
+});
+</script>
+</body></html>
